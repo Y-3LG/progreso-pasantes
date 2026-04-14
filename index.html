@@ -420,33 +420,6 @@ async function initApp() {
   }
 }
 
-// ─── INIT ────────────────────────────────────────────────────────────────────
-async function initApp() {
-  document.getElementById('loading').style.display = 'flex';
-  document.getElementById('setup-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'none';
-
-  const { url, key } = getConfig();
-  if (!url || !key) {
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('setup-screen').style.display = 'flex';
-    return;
-  }
-
-  try {
-    supabase = window.supabase.createClient(url, key);
-    await ensureSchema();
-    await loadData();
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    renderAll();
-  } catch (e) {
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('setup-screen').style.display = 'flex';
-    showSetupError('No se pudo conectar. Verificá las credenciales. (' + e.message + ')');
-  }
-}
-
 async function ensureSchema() {
   // Crear tablas si no existen via RPC o simplemente intentar cargar
   // Las tablas se deben crear manualmente — ver instrucciones en el README
