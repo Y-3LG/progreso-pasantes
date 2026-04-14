@@ -277,7 +277,6 @@
     <div class="topbar-actions">
       <button class="btn-sm view-btn active" id="btn-view-checklist" onclick="switchView('checklist')">checklist</button>
       <button class="btn-sm view-btn" id="btn-view-admin" onclick="switchView('admin')">gestionar</button>
-      <button class="btn-sm" onclick="resetConfig()" title="Cambiar credenciales">⚙</button>
     </div>
   </div>
 
@@ -395,29 +394,30 @@ let currentView = 'checklist';
 let pendingDeleteId = null;
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
-function getConfig() {
-  return {
-    url: localStorage.getItem('sb_url'),
-    key: localStorage.getItem('sb_key'),
-  };
-}
-function saveConfig() {
-  const url = document.getElementById('sb-url').value.trim();
-  const key = document.getElementById('sb-key').value.trim();
-  if (!url || !key) { showSetupError('Completá los dos campos.'); return; }
-  if (!url.startsWith('https://')) { showSetupError('La URL debe comenzar con https://'); return; }
-  localStorage.setItem('sb_url', url);
-  localStorage.setItem('sb_key', key);
-  initApp();
-}
-function resetConfig() {
-  localStorage.removeItem('sb_url');
-  localStorage.removeItem('sb_key');
-  location.reload();
-}
-function showSetupError(msg) {
-  const el = document.getElementById('setup-error');
-  el.textContent = msg; el.style.display = 'block';
+const SB_URL = "https://uaevmmdimkeoufxziimq.supabase.co"; // Reemplaza con tu URL
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhZXZtbWRpbWtlb3VmeHppaW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNzk2NzUsImV4cCI6MjA5MTc1NTY3NX0.i-pVGTmRFvLew7lFEuaHPSN3nDK5cuUXY-nDWwIe320";              // Reemplaza con tu API Key (anon)
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+async function initApp() {
+  // Ocultar pantalla de configuración y mostrar carga
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+
+  try {
+    // Conexión directa con las constantes definidas arriba
+    supabase = window.supabase.createClient(SB_URL, SB_KEY);
+    
+    // Cargar datos directamente
+    await loadData();
+    
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    renderAll();
+  } catch (e) {
+    console.error(e);
+    alert('Error de conexión: Revisa la consola o las credenciales en el código.');
+  }
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
@@ -524,7 +524,7 @@ function renderChecklistView() {
   noPasantes.style.display = 'none';
 
   if (!currentPasante || !pasantes.find(p => p.id === currentPasante)) {
-    currentPasante = pasantes[0].id;
+    currentPasante = pasantes[0].id; 
   }
 
   const pasante = pasantes.find(p => p.id === currentPasante);
