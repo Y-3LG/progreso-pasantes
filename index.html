@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pasantes — Checklist de Capacitación</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #F5F3EE;
+    --surface: #FFFFFF;
+    --surface2: #EEECE7;
+    --border: #D9D6CE;
+    --text: #1A1916;
+    --text2: #6B6860;
+    --text3: #9E9B93;
+    --accent: #2D5A3D;
+    --accent-light: #E8F0EB;
+    --accent2: #5C3B8A;
+    --accent2-light: #EDE8F5;
+    --amber: #8A5C1A;
+    --amber-light: #F5EDDF;
+    --blue: #1A4A7A;
+    --blue-light: #E3ECF5;
+    --danger: #8A1A1A;
+    --danger-light: #F5E3E3;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* SETUP SCREEN */
+  #setup-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 2rem;
+  }
+  .setup-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 2.5rem; width: 100%; max-width: 440px;
+  }
+  .setup-logo { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 1.5rem; }
+  .setup-title { font-size: 22px; font-weight: 500; margin-bottom: 0.4rem; }
+  .setup-sub { font-size: 14px; color: var(--text2); margin-bottom: 2rem; line-height: 1.5; }
+  .field-label { font-size: 12px; font-weight: 500; color: var(--text2); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; display: block; }
+  .field-group { margin-bottom: 1.2rem; }
+  input[type="text"], input[type="password"] {
+    width: 100%; padding: 10px 14px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-family: var(--mono); font-size: 13px;
+    background: var(--bg); color: var(--text); outline: none;
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus, input[type="password"]:focus { border-color: var(--accent); }
+  .btn-primary {
+    width: 100%; padding: 11px; background: var(--text); color: var(--bg);
+    border: none; border-radius: var(--radius-sm); font-family: var(--sans);
+    font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.15s;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .setup-hint { font-size: 12px; color: var(--text3); margin-top: 1rem; line-height: 1.6; }
+  .setup-hint a { color: var(--accent); text-decoration: none; }
+  .setup-error { font-size: 13px; color: var(--danger); background: var(--danger-light); padding: 8px 12px; border-radius: var(--radius-sm); margin-bottom: 1rem; display: none; }
+
+  /* MAIN APP */
+  #app { display: none; }
+  .topbar {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 0 1.5rem; display: flex; align-items: center;
+    justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-brand { font-family: var(--mono); font-size: 12px; color: var(--text2); letter-spacing: 0.08em; }
+  .topbar-brand span { color: var(--text); font-weight: 500; }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .btn-sm {
+    padding: 6px 14px; border-radius: var(--radius-sm); font-size: 13px;
+    font-family: var(--sans); cursor: pointer; transition: all 0.15s;
+    font-weight: 400; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text2);
+  }
+  .btn-sm:hover { background: var(--surface2); color: var(--text); }
+  .btn-accent {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  .btn-accent:hover { opacity: 0.88; background: var(--accent); color: #fff; }
+
+  .main-layout { display: flex; min-height: calc(100vh - 56px); }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 220px; flex-shrink: 0; background: var(--surface);
+    border-right: 1px solid var(--border); padding: 1.25rem 0;
+    position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto;
+  }
+  .sidebar-section { padding: 0 1rem; margin-bottom: 1.5rem; }
+  .sidebar-label { font-size: 10px; font-weight: 500; color: var(--text3); letter-spacing: 0.12em; text-transform: uppercase; padding: 0 0.5rem; margin-bottom: 6px; }
+  .pasante-tab {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+    border-radius: var(--radius-sm); cursor: pointer; transition: background 0.12s;
+    margin-bottom: 2px;
+  }
+  .pasante-tab:hover { background: var(--surface2); }
+  .pasante-tab.active { background: var(--accent-light); }
+  .pasante-avatar {
+    width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: 500; flex-shrink: 0;
+    font-family: var(--mono);
+  }
+  .pasante-tab-name { font-size: 13px; font-weight: 400; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pasante-tab.active .pasante-tab-name { font-weight: 500; color: var(--accent); }
+  .mini-bar { height: 3px; background: var(--surface2); border-radius: 99px; margin-top: 4px; overflow: hidden; }
+  .mini-bar-fill { height: 3px; background: var(--accent); border-radius: 99px; transition: width 0.4s ease; }
+  .pct-label { font-size: 10px; font-family: var(--mono); color: var(--text3); }
+
+  /* CONTENT */
+  .content { flex: 1; padding: 2rem; max-width: 780px; }
+  .content-header { margin-bottom: 1.75rem; }
+  .pasante-headline { display: flex; align-items: center; gap: 14px; margin-bottom: 1rem; }
+  .pasante-big-avatar {
+    width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 15px; font-weight: 500; font-family: var(--mono);
+  }
+  .pasante-headline-name { font-size: 20px; font-weight: 500; }
+  .pasante-headline-sub { font-size: 13px; color: var(--text2); margin-top: 2px; }
+  .progress-track { background: var(--surface2); border-radius: 99px; height: 8px; overflow: hidden; }
+  .progress-fill { height: 8px; background: var(--accent); border-radius: 99px; transition: width 0.5s ease; }
+  .progress-meta { display: flex; justify-content: space-between; margin-top: 6px; }
+  .progress-meta span { font-size: 12px; font-family: var(--mono); color: var(--text3); }
+
+  .phase { margin-bottom: 1.25rem; }
+  .phase-header {
+    display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0; cursor: pointer;
+    user-select: none;
+  }
+  .phase-header.collapsed { border-radius: var(--radius); }
+  .phase-badge {
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    padding: 3px 8px; border-radius: 4px; letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .phase-title { font-size: 14px; font-weight: 500; flex: 1; }
+  .phase-est { font-size: 12px; font-family: var(--mono); color: var(--text3); }
+  .phase-chevron { font-size: 12px; color: var(--text3); transition: transform 0.2s; }
+  .phase-header.collapsed .phase-chevron { transform: rotate(-90deg); }
+
+  .task-list {
+    background: var(--surface); border: 1px solid var(--border); border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius); overflow: hidden;
+  }
+  .task-list.hidden { display: none; }
+  .task-item {
+    display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px;
+    border-bottom: 1px solid var(--border); transition: background 0.1s;
+  }
+  .task-item:last-child { border-bottom: none; }
+  .task-item:hover { background: #FAFAF8; }
+  .task-check {
+    width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border);
+    flex-shrink: 0; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; margin-top: 1px; transition: all 0.15s; background: var(--surface);
+  }
+  .task-check:hover { border-color: var(--accent); }
+  .task-check.checked { background: var(--accent); border-color: var(--accent); }
+  .task-check.checked::after {
+    content: ''; display: block; width: 10px; height: 6px;
+    border-left: 2px solid #fff; border-bottom: 2px solid #fff;
+    transform: rotate(-45deg) translateY(-1px);
+  }
+  .task-content { flex: 1; }
+  .task-text { font-size: 13px; line-height: 1.5; color: var(--text); transition: color 0.15s; }
+  .task-text.done { color: var(--text3); text-decoration: line-through; }
+  .task-link { font-size: 12px; color: var(--accent); text-decoration: none; font-family: var(--mono); display: inline-flex; align-items: center; gap: 3px; margin-top: 3px; }
+  .task-link:hover { text-decoration: underline; }
+
+  /* ADMIN PANEL */
+  .admin-panel { flex: 1; padding: 2rem; max-width: 700px; }
+  .admin-panel.hidden { display: none; }
+  .section-title { font-size: 16px; font-weight: 500; margin-bottom: 1rem; }
+  .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .admin-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
+  .admin-box-title { font-size: 13px; font-weight: 500; margin-bottom: 1rem; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--mono); font-size: 11px; }
+  .pasante-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .pasante-row:last-child { border-bottom: none; }
+  .pasante-row-name { flex: 1; font-size: 14px; }
+  .pasante-row-pct { font-size: 12px; font-family: var(--mono); color: var(--text3); }
+  .btn-danger-sm {
+    padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer;
+    border: 1px solid var(--danger-light); background: var(--danger-light);
+    color: var(--danger); font-family: var(--sans); transition: all 0.15s;
+  }
+  .btn-danger-sm:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+  .add-form { display: flex; gap: 8px; }
+  .add-form input { flex: 1; }
+
+  /* LOADING */
+  #loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--text);
+    color: var(--bg); padding: 10px 18px; border-radius: var(--radius-sm);
+    font-size: 13px; z-index: 9999; opacity: 0; transform: translateY(8px);
+    transition: all 0.2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(26,25,22,0.5); z-index: 500;
+    display: flex; align-items: center; justify-content: center; padding: 1rem;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--surface); border-radius: 14px; padding: 2rem;
+    width: 100%; max-width: 400px; transform: translateY(10px); transition: transform 0.2s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-title { font-size: 17px; font-weight: 500; margin-bottom: 0.5rem; }
+  .modal-sub { font-size: 13px; color: var(--text2); margin-bottom: 1.5rem; line-height: 1.5; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn-modal-cancel { padding: 8px 18px; border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); font-size: 14px; cursor: pointer; font-family: var(--sans); }
+  .btn-modal-confirm { padding: 8px 18px; background: var(--danger); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 14px; cursor: pointer; font-family: var(--sans); }
+
+  /* VIEW SWITCHER */
+  .view-btn { font-size: 12px; font-family: var(--mono); }
+  .view-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  @media (max-width: 640px) {
+    .sidebar { display: none; }
+    .content, .admin-panel { padding: 1rem; }
+    .admin-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div></div>
+
+<!-- SETUP SCREEN -->
+<div id="setup-screen" style="display:none;">
+  <div class="setup-card">
+    <div class="setup-logo">Pasantes // Capacitación</div>
+    <div class="setup-title">Configurar conexión</div>
+    <div class="setup-sub">Ingresa las credenciales de tu proyecto de Supabase para comenzar.</div>
+    <div class="setup-error" id="setup-error"></div>
+    <div class="field-group">
+      <label class="field-label">Supabase URL</label>
+      <input type="text" id="sb-url" placeholder="https://xxxxxxxxxxxx.supabase.co">
+    </div>
+    <div class="field-group">
+      <label class="field-label">Anon Key</label>
+      <input type="password" id="sb-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+    </div>
+    <button class="btn-primary" onclick="saveConfig()">Conectar y continuar →</button>
+    <div class="setup-hint">
+      Encontrás estos valores en tu proyecto de Supabase en<br>
+      <a href="https://supabase.com/dashboard" target="_blank">supabase.com/dashboard</a> → Settings → API.<br><br>
+      Las credenciales se guardan solo en este navegador.
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-brand">pasantes // <span id="topbar-semana">semana 1</span></div>
+    <div class="topbar-actions">
+      <button class="btn-sm view-btn active" id="btn-view-checklist" onclick="switchView('checklist')">checklist</button>
+      <button class="btn-sm view-btn" id="btn-view-admin" onclick="switchView('admin')">gestionar</button>
+      <button class="btn-sm" onclick="resetConfig()" title="Cambiar credenciales">⚙</button>
+    </div>
+  </div>
+
+  <div class="main-layout">
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Pasantes</div>
+        <div id="pasantes-nav"></div>
+      </div>
+    </div>
+
+    <!-- CHECKLIST VIEW -->
+    <div class="content" id="checklist-view">
+      <div id="no-pasantes" style="display:none; padding: 3rem 0; text-align:center; color: var(--text3); font-size:14px;">
+        No hay pasantes aún. Agregá uno desde "gestionar".
+      </div>
+      <div id="pasante-view"></div>
+    </div>
+
+    <!-- ADMIN VIEW -->
+    <div class="admin-panel hidden" id="admin-view">
+      <div style="margin-bottom:2rem;">
+        <div class="section-title">Gestionar pasantes</div>
+        <div class="admin-grid">
+          <div class="admin-box">
+            <div class="admin-box-title">Pasantes activos</div>
+            <div id="pasantes-list-admin"></div>
+            <div style="margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border);">
+              <div class="add-form">
+                <input type="text" id="new-pasante-name" placeholder="Nombre del pasante..." onkeydown="if(event.key==='Enter') addPasante()">
+                <button class="btn-sm btn-accent" onclick="addPasante()">+ Agregar</button>
+              </div>
+            </div>
+          </div>
+          <div class="admin-box">
+            <div class="admin-box-title">Resumen de progreso</div>
+            <div id="admin-summary"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- MODAL CONFIRMAR ELIMINACIÓN -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <div class="modal-title">Eliminar pasante</div>
+    <div class="modal-sub" id="confirm-modal-text">¿Seguro que querés eliminar a este pasante? Se borrará todo su progreso.</div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-modal-confirm" id="confirm-modal-btn">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const CHECKLIST = [
+  {
+    id: 'fase1', label: 'Fase 1', title: 'Estructura y Semántica', est: 'Día 1–2 · 6–8 h',
+    color: { badge: '#EDE8F5', text: '#5C3B8A' },
+    tasks: [
+      { id: 't1', text: 'Introducción a HTML5 — Completar los primeros 30–40 pasos del proyecto "Cat Photo App" en freeCodeCamp.', link: { label: 'freeCodeCamp →', url: 'https://www.freecodecamp.org/learn/2022/responsive-web-design/' } },
+      { id: 't2', text: 'Semántica — Investigar y explicar para qué sirven las etiquetas <header>, <main>, <section>, <article> y <footer>.' },
+      { id: 't3', text: 'Formularios — Crear un archivo local index.html con un formulario que tenga input, checkbox y un botón de submit.' },
+    ]
+  },
+  {
+    id: 'fase2', label: 'Fase 2', title: 'Estética y Modelo de Caja', est: 'Día 3 · 4–5 h',
+    color: { badge: '#E8F0EB', text: '#2D5A3D' },
+    tasks: [
+      { id: 't4', text: 'Fundamentos de CSS — Ver el video de FalconMasters y replicar los ejemplos de colores y fuentes.' },
+      { id: 't5', text: 'El Modelo de Caja (Box Model) — Entender la diferencia entre padding, border y margin usando las herramientas de desarrollador del navegador.' },
+      { id: 't6', text: 'Selectores — Practicar selectores de clase (.clase), ID (#id) y de etiqueta.' },
+    ]
+  },
+  {
+    id: 'fase3', label: 'Fase 3', title: 'Layout Moderno', est: 'Día 4 · 3–4 h',
+    color: { badge: '#F5EDDF', text: '#8A5C1A' },
+    tasks: [
+      { id: 't7', text: 'Flexbox — Completar los 24 niveles de Flexbox Froggy.', link: { label: 'Flexbox Froggy →', url: 'https://flexboxfroggy.com/#es' } },
+      { id: 't8', text: 'CSS Grid — Completar los 28 niveles de Grid Garden.', link: { label: 'Grid Garden →', url: 'https://cssgridgarden.com/#es' } },
+      { id: 't9', text: 'Práctica de Posicionamiento — Crear una fila de 3 tarjetas que se alineen horizontalmente en PC y verticalmente en móviles.' },
+    ]
+  },
+  {
+    id: 'fase4', label: 'Fase 4', title: 'Control de Versiones y Entorno', est: 'Día 5 · 4 h',
+    color: { badge: '#E3ECF5', text: '#1A4A7A' },
+    tasks: [
+      { id: 't10', text: 'Instalación — Configurar Visual Studio Code con las extensiones "Live Server" y "Prettier".' },
+      { id: 't11', text: 'Git básico — Ver el video de HolaMundo y crear un repositorio en GitHub.', link: { label: 'HolaMundo Git →', url: 'https://www.youtube.com/watch?v=VdGzPZ31ts8' } },
+      { id: 't12', text: 'Primer Push — Subir el código de las tarjetas realizado el día anterior a su repositorio de GitHub.' },
+    ]
+  },
+];
+
+const TOTAL_TASKS = CHECKLIST.reduce((a, f) => a + f.tasks.length, 0);
+const AVATAR_COLORS = [
+  { bg: '#EDE8F5', text: '#5C3B8A' },
+  { bg: '#E8F0EB', text: '#2D5A3D' },
+  { bg: '#E3ECF5', text: '#1A4A7A' },
+  { bg: '#F5EDDF', text: '#8A5C1A' },
+  { bg: '#F5E3E3', text: '#8A1A1A' },
+];
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let supabase = null;
+let pasantes = []; // [{id, nombre, created_at}]
+let progress = {}; // { pasante_id: { task_id: bool } }
+let currentPasante = null;
+let currentView = 'checklist';
+let pendingDeleteId = null;
+
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+function getConfig() {
+  return {
+    url: localStorage.getItem('sb_url'),
+    key: localStorage.getItem('sb_key'),
+  };
+}
+function saveConfig() {
+  const url = document.getElementById('sb-url').value.trim();
+  const key = document.getElementById('sb-key').value.trim();
+  if (!url || !key) { showSetupError('Completá los dos campos.'); return; }
+  if (!url.startsWith('https://')) { showSetupError('La URL debe comenzar con https://'); return; }
+  localStorage.setItem('sb_url', url);
+  localStorage.setItem('sb_key', key);
+  initApp();
+}
+function resetConfig() {
+  localStorage.removeItem('sb_url');
+  localStorage.removeItem('sb_key');
+  location.reload();
+}
+function showSetupError(msg) {
+  const el = document.getElementById('setup-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+async function initApp() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+
+  const { url, key } = getConfig();
+  if (!url || !key) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'flex';
+    return;
+  }
+
+  try {
+    supabase = window.supabase.createClient(url, key);
+    await ensureSchema();
+    await loadData();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    renderAll();
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'flex';
+    showSetupError('No se pudo conectar. Verificá las credenciales. (' + e.message + ')');
+  }
+}
+
+async function ensureSchema() {
+  // Crear tablas si no existen via RPC o simplemente intentar cargar
+  // Las tablas se deben crear manualmente — ver instrucciones en el README
+  const { error } = await supabase.from('pasantes').select('id').limit(1);
+  if (error) throw new Error('Tabla no encontrada. Revisá el README para crear las tablas.');
+}
+
+async function loadData() {
+  const { data: p, error: e1 } = await supabase.from('pasantes').select('*').order('created_at');
+  if (e1) throw e1;
+  pasantes = p || [];
+
+  const { data: pr, error: e2 } = await supabase.from('progress').select('*');
+  if (e2) throw e2;
+
+  progress = {};
+  for (const row of (pr || [])) {
+    if (!progress[row.pasante_id]) progress[row.pasante_id] = {};
+    progress[row.pasante_id][row.task_id] = row.done;
+  }
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderSidebar();
+  if (currentView === 'checklist') renderChecklistView();
+  else renderAdminView();
+}
+
+function getInitials(name) {
+  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+function getAvatarColor(idx) {
+  return AVATAR_COLORS[idx % AVATAR_COLORS.length];
+}
+function getPct(pasanteId) {
+  const p = progress[pasanteId] || {};
+  const done = Object.values(p).filter(Boolean).length;
+  return { done, total: TOTAL_TASKS, pct: Math.round((done / TOTAL_TASKS) * 100) };
+}
+
+function renderSidebar() {
+  const nav = document.getElementById('pasantes-nav');
+  nav.innerHTML = '';
+  if (pasantes.length === 0) {
+    nav.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:4px 10px;">Sin pasantes aún</div>';
+    return;
+  }
+  pasantes.forEach((p, i) => {
+    const col = getAvatarColor(i);
+    const { pct } = getPct(p.id);
+    const isActive = currentPasante === p.id;
+    const div = document.createElement('div');
+    div.className = 'pasante-tab' + (isActive ? ' active' : '');
+    div.innerHTML = `
+      <div class="pasante-avatar" style="background:${col.bg};color:${col.text}">${getInitials(p.nombre)}</div>
+      <div style="flex:1;min-width:0;">
+        <div class="pasante-tab-name">${p.nombre}</div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="pct-label">${pct}%</div>
+    `;
+    div.onclick = () => { currentPasante = p.id; renderAll(); };
+    nav.appendChild(div);
+  });
+}
+
+function renderChecklistView() {
+  const view = document.getElementById('pasante-view');
+  const noPasantes = document.getElementById('no-pasantes');
+
+  if (pasantes.length === 0) {
+    noPasantes.style.display = 'block'; view.innerHTML = ''; return;
+  }
+  noPasantes.style.display = 'none';
+
+  if (!currentPasante || !pasantes.find(p => p.id === currentPasante)) {
+    currentPasante = pasantes[0].id;
+  }
+
+  const pasante = pasantes.find(p => p.id === currentPasante);
+  const idx = pasantes.indexOf(pasante);
+  const col = getAvatarColor(idx);
+  const { done, total, pct } = getPct(currentPasante);
+  const prog = progress[currentPasante] || {};
+
+  view.innerHTML = `
+    <div class="content-header">
+      <div class="pasante-headline">
+        <div class="pasante-big-avatar" style="background:${col.bg};color:${col.text}">${getInitials(pasante.nombre)}</div>
+        <div>
+          <div class="pasante-headline-name">${pasante.nombre}</div>
+          <div class="pasante-headline-sub">Semana 1 — Fundamentos Web</div>
+        </div>
+      </div>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="progress-meta"><span>${done} de ${total} tareas completadas</span><span>${pct}%</span></div>
+    </div>
+    <div id="phases-container"></div>
+  `;
+
+  const container = view.querySelector('#phases-container');
+  CHECKLIST.forEach(fase => {
+    const phaseDiv = document.createElement('div');
+    phaseDiv.className = 'phase';
+    const doneFase = fase.tasks.filter(t => prog[t.id]).length;
+
+    phaseDiv.innerHTML = `
+      <div class="phase-header" onclick="togglePhase('${fase.id}')">
+        <span class="phase-badge" style="background:${fase.color.badge};color:${fase.color.text}">${fase.label}</span>
+        <span class="phase-title">${fase.title}</span>
+        <span class="phase-est">${doneFase}/${fase.tasks.length} · ${fase.est}</span>
+        <span class="phase-chevron">▼</span>
+      </div>
+      <div class="task-list" id="tasklist-${fase.id}">
+        ${fase.tasks.map(task => {
+          const checked = !!prog[task.id];
+          return `
+            <div class="task-item">
+              <div class="task-check ${checked ? 'checked' : ''}" onclick="toggleTask('${task.id}', this)" data-task="${task.id}"></div>
+              <div class="task-content">
+                <div class="task-text ${checked ? 'done' : ''}">${task.text}</div>
+                ${task.link ? `<a class="task-link" href="${task.link.url}" target="_blank">${task.link.label}</a>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+    container.appendChild(phaseDiv);
+  });
+}
+
+function togglePhase(id) {
+  const list = document.getElementById('tasklist-' + id);
+  const header = list.previousElementSibling;
+  list.classList.toggle('hidden');
+  header.classList.toggle('collapsed');
+}
+
+async function toggleTask(taskId, el) {
+  const newVal = !el.classList.contains('checked');
+  el.classList.toggle('checked', newVal);
+  const textEl = el.nextElementSibling?.querySelector('.task-text');
+  if (textEl) textEl.classList.toggle('done', newVal);
+
+  if (!progress[currentPasante]) progress[currentPasante] = {};
+  progress[currentPasante][taskId] = newVal;
+
+  // Update progress bars without full re-render
+  updateProgressBars();
+
+  // Persist to Supabase
+  const { error } = await supabase.from('progress').upsert({
+    pasante_id: currentPasante,
+    task_id: taskId,
+    done: newVal
+  }, { onConflict: 'pasante_id,task_id' });
+
+  if (error) { showToast('Error al guardar :('); return; }
+  showToast(newVal ? '✓ Guardado' : 'Desmarcado');
+}
+
+function updateProgressBars() {
+  const { done, total, pct } = getPct(currentPasante);
+  const fill = document.querySelector('.progress-fill');
+  if (fill) fill.style.width = pct + '%';
+  const meta = document.querySelectorAll('.progress-meta span');
+  if (meta[0]) meta[0].textContent = `${done} de ${total} tareas completadas`;
+  if (meta[1]) meta[1].textContent = `${pct}%`;
+
+  // Update sidebar mini bars
+  renderSidebar();
+
+  // Update phase counters
+  CHECKLIST.forEach(fase => {
+    const prog = progress[currentPasante] || {};
+    const doneFase = fase.tasks.filter(t => prog[t.id]).length;
+    const header = document.querySelector(`#tasklist-${fase.id}`)?.previousElementSibling;
+    if (header) {
+      const estSpan = header.querySelector('.phase-est');
+      if (estSpan) estSpan.textContent = `${doneFase}/${fase.tasks.length} · ${fase.est}`;
+    }
+  });
+}
+
+function renderAdminView() {
+  const listEl = document.getElementById('pasantes-list-admin');
+  const summaryEl = document.getElementById('admin-summary');
+
+  if (pasantes.length === 0) {
+    listEl.innerHTML = '<div style="font-size:13px;color:var(--text3);padding:8px 0;">Sin pasantes. Agregá uno abajo.</div>';
+    summaryEl.innerHTML = '<div style="font-size:13px;color:var(--text3);">Sin datos aún.</div>';
+    return;
+  }
+
+  listEl.innerHTML = pasantes.map((p, i) => {
+    const col = getAvatarColor(i);
+    const { pct } = getPct(p.id);
+    return `
+      <div class="pasante-row">
+        <div class="pasante-avatar" style="background:${col.bg};color:${col.text};width:28px;height:28px;font-size:11px;">${getInitials(p.nombre)}</div>
+        <div class="pasante-row-name">${p.nombre}</div>
+        <div class="pasante-row-pct">${pct}%</div>
+        <button class="btn-danger-sm" onclick="confirmDelete('${p.id}', '${p.nombre}')">Eliminar</button>
+      </div>
+    `;
+  }).join('');
+
+  const avgPct = pasantes.length
+    ? Math.round(pasantes.reduce((a, p) => a + getPct(p.id).pct, 0) / pasantes.length)
+    : 0;
+
+  summaryEl.innerHTML = `
+    <div style="margin-bottom:1rem;">
+      <div style="font-size:28px;font-weight:500;font-family:var(--mono);">${avgPct}%</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:2px;">Promedio general</div>
+    </div>
+    ${pasantes.map(p => {
+      const { done, pct } = getPct(p.id);
+      return `
+        <div style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+            <span>${p.nombre}</span>
+            <span style="font-family:var(--mono);color:var(--text3)">${done}/${TOTAL_TASKS}</span>
+          </div>
+          <div class="progress-track" style="height:5px;">
+            <div class="progress-fill" style="width:${pct}%;height:5px;"></div>
+          </div>
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+
+// ─── ADMIN ACTIONS ───────────────────────────────────────────────────────────
+async function addPasante() {
+  const input = document.getElementById('new-pasante-name');
+  const nombre = input.value.trim();
+  if (!nombre) return;
+
+  const { data, error } = await supabase.from('pasantes').insert({ nombre }).select().single();
+  if (error) { showToast('Error al agregar'); return; }
+
+  pasantes.push(data);
+  input.value = '';
+  currentPasante = data.id;
+  renderAll();
+  showToast(`${nombre} agregado ✓`);
+}
+
+function confirmDelete(id, nombre) {
+  pendingDeleteId = id;
+  document.getElementById('confirm-modal-text').textContent = `¿Seguro que querés eliminar a ${nombre}? Se borrará todo su progreso.`;
+  document.getElementById('confirm-modal-btn').onclick = () => deletePasante(id);
+  document.getElementById('confirm-modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('confirm-modal').classList.remove('open');
+  pendingDeleteId = null;
+}
+
+async function deletePasante(id) {
+  closeModal();
+  await supabase.from('progress').delete().eq('pasante_id', id);
+  await supabase.from('pasantes').delete().eq('id', id);
+  pasantes = pasantes.filter(p => p.id !== id);
+  delete progress[id];
+  if (currentPasante === id) currentPasante = pasantes[0]?.id || null;
+  renderAll();
+  showToast('Pasante eliminado');
+}
+
+// ─── VIEW SWITCH ─────────────────────────────────────────────────────────────
+function switchView(view) {
+  currentView = view;
+  document.getElementById('checklist-view').style.display = view === 'checklist' ? '' : 'none';
+  document.getElementById('admin-view').classList.toggle('hidden', view !== 'admin');
+  document.getElementById('btn-view-checklist').classList.toggle('active', view === 'checklist');
+  document.getElementById('btn-view-admin').classList.toggle('active', view === 'admin');
+  if (view === 'admin') renderAdminView();
+  else renderChecklistView();
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// ─── START ───────────────────────────────────────────────────────────────────
+initApp();
+</script>
+</body>
+</html>
