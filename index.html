@@ -240,6 +240,17 @@
     .content, .admin-panel { padding: 1rem; }
     .admin-grid { grid-template-columns: 1fr; }
   }
+
+  body.dark {
+  --bg: #121212;
+  --surface: #1E1E1E;
+  --surface2: #2A2A2A;
+  --border: #333;
+  --text: #EAEAEA;
+  --text2: #B0B0B0;
+  --text3: #777;
+}
+
 </style>
 </head>
 <body>
@@ -277,6 +288,7 @@
     <div class="topbar-actions">
       <button class="btn-sm view-btn active" id="btn-view-checklist" onclick="switchView('checklist')">checklist</button>
       <button class="btn-sm view-btn" id="btn-view-admin" onclick="switchView('admin')">gestionar</button>
+      <button class="btn-sm" onclick="toggleDarkMode()">🌙</button>
     </div>
   </div>
 
@@ -336,47 +348,12 @@
 </div>
 
 <script>
-// ─── DATA ────────────────────────────────────────────────────────────────────
-const CHECKLIST = [
-  {
-    id: 'fase1', label: 'Fase 1', title: 'Estructura y Semántica', est: 'Día 1–2 · 6–8 h',
-    color: { badge: '#EDE8F5', text: '#5C3B8A' },
-    tasks: [
-      { id: 't1', text: 'Introducción a HTML5 — Completar los primeros 30–40 pasos del proyecto "Cat Photo App" en freeCodeCamp.', link: { label: 'freeCodeCamp →', url: 'https://www.freecodecamp.org/learn/2022/responsive-web-design/' } },
-      { id: 't2', text: 'Semántica — Investigar y explicar para qué sirven las etiquetas <header>, <main>, <section>, <article> y <footer>.' },
-      { id: 't3', text: 'Formularios — Crear un archivo local index.html con un formulario que tenga input, checkbox y un botón de submit.' },
-    ]
-  },
-  {
-    id: 'fase2', label: 'Fase 2', title: 'Estética y Modelo de Caja', est: 'Día 3 · 4–5 h',
-    color: { badge: '#E8F0EB', text: '#2D5A3D' },
-    tasks: [
-      { id: 't4', text: 'Fundamentos de CSS — Ver el video de FalconMasters y replicar los ejemplos de colores y fuentes.' },
-      { id: 't5', text: 'El Modelo de Caja (Box Model) — Entender la diferencia entre padding, border y margin usando las herramientas de desarrollador del navegador.' },
-      { id: 't6', text: 'Selectores — Practicar selectores de clase (.clase), ID (#id) y de etiqueta.' },
-    ]
-  },
-  {
-    id: 'fase3', label: 'Fase 3', title: 'Layout Moderno', est: 'Día 4 · 3–4 h',
-    color: { badge: '#F5EDDF', text: '#8A5C1A' },
-    tasks: [
-      { id: 't7', text: 'Flexbox — Completar los 24 niveles de Flexbox Froggy.', link: { label: 'Flexbox Froggy →', url: 'https://flexboxfroggy.com/#es' } },
-      { id: 't8', text: 'CSS Grid — Completar los 28 niveles de Grid Garden.', link: { label: 'Grid Garden →', url: 'https://cssgridgarden.com/#es' } },
-      { id: 't9', text: 'Práctica de Posicionamiento — Crear una fila de 3 tarjetas que se alineen horizontalmente en PC y verticalmente en móviles.' },
-    ]
-  },
-  {
-    id: 'fase4', label: 'Fase 4', title: 'Control de Versiones y Entorno', est: 'Día 5 · 4 h',
-    color: { badge: '#E3ECF5', text: '#1A4A7A' },
-    tasks: [
-      { id: 't10', text: 'Instalación — Configurar Visual Studio Code con las extensiones "Live Server" y "Prettier".' },
-      { id: 't11', text: 'Git básico — Ver el video de HolaMundo y crear un repositorio en GitHub.', link: { label: 'HolaMundo Git →', url: 'https://www.youtube.com/watch?v=VdGzPZ31ts8' } },
-      { id: 't12', text: 'Primer Push — Subir el código de las tarjetas realizado el día anterior a su repositorio de GitHub.' },
-    ]
-  },
-];
 
-const TOTAL_TASKS = CHECKLIST.reduce((a, f) => a + f.tasks.length, 0);
+const ADMIN_USER = "admin";
+const ADMIN_PASS = "1234";
+
+// ─── DATA ────────────────────────────────────────────────────────────────────
+
 const AVATAR_COLORS = [
   { bg: '#EDE8F5', text: '#5C3B8A' },
   { bg: '#E8F0EB', text: '#2D5A3D' },
@@ -395,6 +372,9 @@ let progress = {};
 let currentPasante = null;
 let currentView = 'checklist';
 let pendingDeleteId = null;
+let fases = [];
+let tareas = [];
+let TOTAL_TASKS = 0;
 
 // ─── INIT ACTUALIZADO ────────────────────────────────────────────────────────
 async function initApp() {
@@ -428,17 +408,31 @@ async function ensureSchema() {
 }
 
 async function loadData() {
+  // PASANTES
   const { data: p, error: e1 } = await supabaseClient.from('pasantes').select('*').order('created_at');
   if (e1) throw e1;
   pasantes = p || [];
 
-  const { data: pr, error: e2 } = await supabaseClient.from('progress').select('*');
+  // FASES
+  const { data: f, error: e2 } = await supabaseClient.from('fases').select('*').order('dia');
   if (e2) throw e2;
+  fases = f || [];
+
+  // TAREAS
+  const { data: t, error: e3 } = await supabaseClient.from('tareas').select('*');
+  if (e3) throw e3;
+  tareas = t || [];
+
+  TOTAL_TASKS = tareas.length;
+
+  // PROGRESS
+  const { data: pr, error: e4 } = await supabaseClient.from('progress').select('*');
+  if (e4) throw e4;
 
   progress = {};
   for (const row of (pr || [])) {
     if (!progress[row.pasante_id]) progress[row.pasante_id] = {};
-    progress[row.pasante_id][row.task_id] = row.done;
+    progress[row.pasante_id][row.tarea_id] = row.done;
   }
 }
 
@@ -522,20 +516,18 @@ function renderChecklistView() {
   `;
 
   const container = view.querySelector('#phases-container');
-  CHECKLIST.forEach(fase => {
-    const phaseDiv = document.createElement('div');
-    phaseDiv.className = 'phase';
-    const doneFase = fase.tasks.filter(t => prog[t.id]).length;
+fases.forEach(fase => {
+  const tareasDeFase = tareas.filter(t => t.fase_id === fase.id);
 
     phaseDiv.innerHTML = `
       <div class="phase-header" onclick="togglePhase('${fase.id}')">
         <span class="phase-badge" style="background:${fase.color.badge};color:${fase.color.text}">${fase.label}</span>
         <span class="phase-title">${fase.title}</span>
-        <span class="phase-est">${doneFase}/${fase.tasks.length} · ${fase.est}</span>
+        <span class="phase-est">${doneFase}/${tareasDeFase.length} · ${fase.est}</span>
         <span class="phase-chevron">▼</span>
       </div>
       <div class="task-list" id="tasklist-${fase.id}">
-        ${fase.tasks.map(task => {
+        ${tareasDeFase.map(task => {
           const checked = !!prog[task.id];
           return `
             <div class="task-item">
@@ -597,11 +589,11 @@ function updateProgressBars() {
   // Update phase counters
   CHECKLIST.forEach(fase => {
     const prog = progress[currentPasante] || {};
-    const doneFase = fase.tasks.filter(t => prog[t.id]).length;
+    const doneFase = tareasDeFase.filter(t => prog[t.id]).length;
     const header = document.querySelector(`#tasklist-${fase.id}`)?.previousElementSibling;
     if (header) {
       const estSpan = header.querySelector('.phase-est');
-      if (estSpan) estSpan.textContent = `${doneFase}/${fase.tasks.length} · ${fase.est}`;
+      if (estSpan) estSpan.textContent = `${doneFase}/${tareasDeFase.length} · ${fase.est}`;
     }
   });
 }
@@ -695,13 +687,25 @@ async function deletePasante(id) {
 
 // ─── VIEW SWITCH ─────────────────────────────────────────────────────────────
 function switchView(view) {
+  if (view === 'admin') {
+    const isAuth = localStorage.getItem('admin_auth');
+
+    if (!isAuth) {
+      const user = prompt("Usuario:");
+      const pass = prompt("Contraseña:");
+
+      if (user === ADMIN_USER && pass === ADMIN_PASS) {
+        localStorage.setItem('admin_auth', 'true');
+      } else {
+        alert("Acceso denegado");
+        return;
+      }
+    }
+  }
+
   currentView = view;
   document.getElementById('checklist-view').style.display = view === 'checklist' ? '' : 'none';
   document.getElementById('admin-view').classList.toggle('hidden', view !== 'admin');
-  document.getElementById('btn-view-checklist').classList.toggle('active', view === 'checklist');
-  document.getElementById('btn-view-admin').classList.toggle('active', view === 'admin');
-  if (view === 'admin') renderAdminView();
-  else renderChecklistView();
 }
 
 // ─── TOAST ───────────────────────────────────────────────────────────────────
@@ -711,6 +715,16 @@ function showToast(msg) {
   el.textContent = msg; el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+
+function toggleDarkMode() {
+  document.body.classList.toggle('dark');
+  localStorage.setItem('dark', document.body.classList.contains('dark'));
+}
+
+if (localStorage.getItem('dark') === 'true') {
+  document.body.classList.add('dark');
 }
 
 // ─── START ───────────────────────────────────────────────────────────────────
